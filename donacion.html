@@ -1,71 +1,90 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Prueba Getnet + Flask + SQLite</title>
+  <meta charset="UTF-8" />
+  <title>Pagar donación</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
-  <h1>💳 Demo integración de pagos</h1>
+  <h1>Doná</h1>
 
-  <p>
-    <label for="amount">Monto (centavos ARS):</label>
-    <input type="number" id="amount" value="100" />
-  </p>
-
-  <!-- Todos los botones tienen type="button" -->
-  <button type="button" onclick="getToken()">🔑 /token</button>
-  <button type="button" onclick="createPaymentIntent()">💸 /payment-intent</button>
-  <button type="button" onclick="listPayments()">📜 /payments</button>
-
-  <pre id="output"></pre>
-  <div id="checkout-button"></div>
+  <label for="amount">Monto (PESOS ARS, solo enteros):</label>
+  <input id="amount" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="1500" autocomplete="off" />
+  <button type="button" id="btn">Pagar</button>
 
   <script>
+    // 🔧 Cambiá esto si usás otro backend
     const API = "https://getnet-volviendo-a-casa.onrender.com";
 
-    async function getToken() {
-      const res = await fetch(`${API}/token`);
-      const data = await res.json();
-      show("Respuesta /token", data);
+    // Solo dígitos en el input (sin puntos, comas ni letras)
+    const $amount = document.getElementById("amount");
+    $amount.addEventListener("input", (e) => {
+      e.target.value = e.target.value.replace(/\D/g, "");
+    });
+
+    function pickRedirectUrl(d) {
+      const c = [
+        d?.redirect_url, d?.payment_url, d?.processUrl, d?.url,
+        d?.data?.links?.checkout, d?.data?.redirect_url, d?.data?.url
+      ];
+      return c.find(u => typeof u === "string" && u.startsWith("http")) || null;
     }
 
     async function createPaymentIntent() {
-      const amount = parseInt(document.getElementById("amount").value);
-      const res = await fetch(`${API}/payment-intent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount })
-      });
-      const data = await res.json();
-      show("Respuesta /payment-intent", data);
+      const raw = $amount.value.trim();
+      const pesos = parseInt(raw, 10);
 
-      const btnContainer = document.getElementById("checkout-button");
-      btnContainer.innerHTML = ""; // limpiar
-
-      // Crear botón dinámico
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = data.redirect_url
-        ? "👉 Ir al checkout Getnet"
-        : "⚠️ No llegó redirect_url";
-      if (data.redirect_url) {
-        button.onclick = () => window.open(data.redirect_url, "_blank");
-      } else {
-        button.disabled = true;
+      if (!Number.isInteger(pesos) || pesos <= 0) {
+        alert("Ingresá un monto válido (pesos enteros, sin centavos).");
+        $amount.focus();
+        return;
       }
-      btnContainer.appendChild(button);
+
+      // PESOS → CENTAVOS para Getnet
+      const amount = pesos * 100;
+      if (!Number.isSafeInteger(amount)) {
+        alert("Monto demasiado grande.");
+        return;
+      }
+
+      // Abrir la pestaña antes del fetch para que no lo bloquee el navegador
+      const win = window.open("about:blank", "_blank");
+      const btn = document.getElementById("btn");
+      const prev = btn.textContent;
+      btn.disabled = true; btn.textContent = "Creando orden...";
+
+      try {
+        const res = await fetch(API + "/payment-intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount }) // ← centavos
+        });
+
+        let data;
+        try { data = await res.json(); } catch { data = await res.text(); }
+
+        if (!res.ok) {
+          if (win) win.close();
+          alert("No se pudo crear la intención de pago.\n" + (typeof data === "string" ? data : JSON.stringify(data, null, 2)));
+          return;
+        }
+
+        const url = pickRedirectUrl(data);
+        if (url) {
+          if (win) win.location = url; else window.open(url, "_blank");
+        } else {
+          if (win) win.close();
+          alert("La respuesta no incluyó link de checkout.\n" + JSON.stringify(data, null, 2));
+        }
+      } catch (err) {
+        if (win) win.close();
+        alert("Error de red: " + err);
+      } finally {
+        btn.disabled = false; btn.textContent = prev;
+      }
     }
 
-    async function listPayments() {
-      const res = await fetch(`${API}/payments`);
-      const data = await res.json();
-      show("Pagos en DB", data);
-    }
-
-    function show(title, data) {
-      document.getElementById("output").textContent =
-        `${title}:\n` + JSON.stringify(data, null, 2);
-    }
+    document.getElementById("btn").addEventListener("click", createPaymentIntent);
   </script>
 </body>
 </html>
