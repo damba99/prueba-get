@@ -73,7 +73,7 @@
                 </div>
                 <form id="form" action="">
                     <h2 class="subtitle">Ingresá el monto que querés donar</h2>
-                    <input type="text" id="monto" placeholder="0,00">
+                    <input id="monto" type="number" min="1" step="1" inputmode="numeric" pattern="\d*">
                     <input type="hidden" name="monto_valor" id="monto_valor">
                     <br><br>
                     <button type="submit" class="btn">Siguiente</button>
