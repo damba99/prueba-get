@@ -8,26 +8,41 @@
 <body>
   <h1>Doná</h1>
 
-  <label for="amount">Monto (PESOS ARS, solo enteros):</label>
-  <input id="amount" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="1500" autocomplete="off" />
+  <label for="amount">Monto (ARS, solo enteros):</label>
+  <input 
+    id="amount" 
+    type="number" 
+    inputmode="numeric" 
+    pattern="[0-9]*" 
+    min="1" 
+    step="1" 
+    placeholder="1500" 
+    autocomplete="off" 
+  />
   <button type="button" id="btn">Pagar</button>
 
   <script>
-    // 🔧 Cambiá esto si usás otro backend
     const API = "https://getnet-volviendo-a-casa.onrender.com";
-
-    // Solo dígitos en el input (sin puntos, comas ni letras)
     const $amount = document.getElementById("amount");
-    $amount.addEventListener("input", (e) => {
-      e.target.value = e.target.value.replace(/\D/g, "");
-    });
+    const $btn = document.getElementById("btn");
 
+    // Normaliza posibles campos de URL devueltos
     function pickRedirectUrl(d) {
       const c = [
         d?.redirect_url, d?.payment_url, d?.processUrl, d?.url,
         d?.data?.links?.checkout, d?.data?.redirect_url, d?.data?.url
       ];
       return c.find(u => typeof u === "string" && u.startsWith("http")) || null;
+    }
+
+    async function getClientIp() {
+      try {
+        const r = await fetch("https://api.ipify.org?format=json");
+        const j = await r.json();
+        return j.ip || null;
+      } catch {
+        return null;
+      }
     }
 
     async function createPaymentIntent() {
@@ -40,24 +55,28 @@
         return;
       }
 
-      // PESOS → CENTAVOS para Getnet
       const amount = pesos * 100;
       if (!Number.isSafeInteger(amount)) {
         alert("Monto demasiado grande.");
         return;
       }
 
-      // Abrir la pestaña antes del fetch para que no lo bloquee el navegador
+      // Preabre ventana para no ser bloqueado
       const win = window.open("about:blank", "_blank");
-      const btn = document.getElementById("btn");
-      const prev = btn.textContent;
-      btn.disabled = true; btn.textContent = "Creando orden...";
+      const prev = $btn.textContent;
+      $btn.disabled = true; 
+      $btn.textContent = "Creando orden...";
 
       try {
+        const ip = await getClientIp();
+
+        const payload = { amount };
+        if (ip) payload.ip_address = ip; // se manda al backend
+
         const res = await fetch(API + "/payment-intent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount }) // ← centavos
+          body: JSON.stringify(payload)
         });
 
         let data;
@@ -71,7 +90,8 @@
 
         const url = pickRedirectUrl(data);
         if (url) {
-          if (win) win.location = url; else window.open(url, "_blank");
+          if (win) win.location = url; 
+          else window.open(url, "_blank");
         } else {
           if (win) win.close();
           alert("La respuesta no incluyó link de checkout.\n" + JSON.stringify(data, null, 2));
@@ -80,11 +100,12 @@
         if (win) win.close();
         alert("Error de red: " + err);
       } finally {
-        btn.disabled = false; btn.textContent = prev;
+        $btn.disabled = false; 
+        $btn.textContent = prev;
       }
     }
 
-    document.getElementById("btn").addEventListener("click", createPaymentIntent);
+    $btn.addEventListener("click", createPaymentIntent);
   </script>
 </body>
 </html>
