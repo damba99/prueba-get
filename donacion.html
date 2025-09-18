@@ -4,104 +4,102 @@
   <meta charset="UTF-8" />
   <title>Pagar donación — Fundación Volviendo a Casa</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 20px; max-width: 720px; margin: auto; color: #111; }
-    h1 { margin-bottom: 6px; }
-    form { display: grid; gap: 10px; }
-    label { display: flex; flex-direction: column; font-size: 14px; }
-    input, select, button { padding: 8px 10px; font-size: 16px; border-radius: 6px; border: 1px solid #ccc; }
-    .row { display:flex; gap:10px; }
-    .row > * { flex: 1; }
-    .muted { font-size: 13px; color: #666; }
-    .error { color: #b00020; font-size: 13px; }
-    button { background: #0069d9; color: white; border: 0; cursor: pointer; border-radius: 6px; padding: 10px 14px; }
-    button[disabled] { opacity: 0.6; cursor: not-allowed; }
-    .small { font-size: 13px; color: #555; }
-  </style>
 </head>
 <body>
   <h1>Doná — Fundación Volviendo a Casa</h1>
-  <p class="muted">Completá datos reales. Si vivís en una casa sin número, marcá “Sin número” — pero cuanto más completos y verosímiles sean los datos, mejor funciona el antifraude.</p>
 
   <form id="donationForm" onsubmit="return false;">
-    <label>
-      Nombre
-      <input id="first_name" type="text" placeholder="Juana" required />
+    <label>Nombre <input id="first_name" required /></label>
+    <label>Apellido <input id="last_name" required /></label>
+    <label>Monto (ARS) <input id="amount" type="number" min="1" required /></label>
+
+    <label>Tipo doc
+      <select id="document_type">
+        <option value="dni">DNI</option>
+        <option value="cuit">CUIT</option>
+      </select>
     </label>
-    <label>
-      Apellido
-      <input id="last_name" type="text" placeholder="Pérez" required />
-    </label>
+    <label>N° doc <input id="document_number" /></label>
 
-    <label>
-      Monto (ARS, enteros)
-      <input id="amount" type="number" min="1" step="1" placeholder="1500" inputmode="numeric" required />
-    </label>
+    <label>Calle <input id="street" /></label>
+    <label>Número <input id="number" /></label>
+    <label><input type="checkbox" id="no_number" /> Sin número</label>
 
-    <div class="row">
-      <label>
-        Tipo documento
-        <select id="document_type">
-          <option value="dni">DNI</option>
-          <option value="cuit">CUIT</option>
-        </select>
-      </label>
-      <label>
-        N° Documento
-        <input id="document_number" type="text" inputmode="numeric" pattern="\d*" placeholder="30123456" required />
-      </label>
-    </div>
+    <label>Ciudad <input id="city" /></label>
+    <label>Provincia <input id="state" /></label>
+    <label>CP <input id="postal_code" /></label>
+    <label>Email <input id="email" type="email" /></label>
+    <label>Teléfono <input id="phone" type="tel" /></label>
 
-    <label>
-      Calle
-      <input id="street" type="text" placeholder="Av. Siempre Viva" required />
-    </label>
-    <div class="row">
-      <label>
-        Número
-        <input id="number" type="text" placeholder="742" />
-      </label>
-      <label style="align-items:flex-end;">
-        <label style="font-size:13px; margin:0;">
-          <input id="no_number" type="checkbox" /> Sin número / S/N
-        </label>
-      </label>
-    </div>
+    <button id="btn" type="button">Pagar</button>
+  </form>
 
-    <div class="row">
-      <label>
-        Ciudad
-        <input id="city" type="text" placeholder="Salta" required />
-      </label>
-      <label>
-        Provincia / Estado
-        <input id="state" type="text" placeholder="Salta" required />
-      </label>
-    </div>
+  <script>
+    const API = "https://getnet-volviendo-a-casa.onrender.com";
+    const startTime = Date.now();
 
-    <div class="row">
-      <label>
-        CP
-        <input id="postal_code" type="text" inputmode="numeric" pattern="\d*" placeholder="4400" required />
-      </label>
-      <label>
-        País
-        <input id="country" type="text" value="AR" required />
-      </label>
-    </div>
+    async function getClientIp() {
+      try {
+        const r = await fetch("https://api.ipify.org?format=json");
+        const j = await r.json();
+        return j.ip || null;
+      } catch { return null; }
+    }
 
-    <label>
-      Email
-      <input id="email" type="email" placeholder="donante@ejemplo.com" required />
-    </label>
+    function pickRedirectUrl(d) {
+      const c = [
+        d?.redirect_url, d?.payment_url, d?.processUrl, d?.url,
+        d?.data?.links?.checkout, d?.data?.redirect_url, d?.data?.url
+      ];
+      return c.find(u => typeof u === "string" && u.startsWith("http")) || null;
+    }
 
-    <label>
-      Teléfono (recomendado)
-      <input id="phone" type="tel" placeholder="+549113334444" />
-    </label>
+    async function createPaymentIntent() {
+      const pesos = parseInt(document.getElementById("amount").value, 10);
+      const amount = pesos * 100;
 
-    <div id="error" class="error" role="alert" aria-live="polite" style="display:none;"></div>
+      const payload = {
+        amount,
+        first_name: document.getElementById("first_name").value.trim(),
+        last_name: document.getElementById("last_name").value.trim(),
+        document_type: document.getElementById("document_type").value,
+        document_number: document.getElementById("document_number").value.trim(),
+        billing_street: document.getElementById("street").value.trim(),
+        billing_number: document.getElementById("no_number").checked ? "S/N" : (document.getElementById("number").value.trim() || "S/N"),
+        billing_city: document.getElementById("city").value.trim(),
+        billing_state: document.getElementById("state").value.trim(),
+        billing_postal_code: document.getElementById("postal_code").value.trim(),
+        billing_country: "AR",
+        email: document.getElementById("email").value.trim(),
+        phone: document.getElementById("phone").value.trim(),
+        frontend_locale: navigator.language || "es-AR",
+        frontend_user_agent: navigator.userAgent,
+        frontend_time_page: Math.round((Date.now() - startTime) / 1000)
+      };
 
-    <div style="display:flex; gap:10px; align-items:center;">
-      <button id="btn" type="button">Pagar</button>
-      <div class="muted
+      const ip = await getClientIp();
+      if (ip) payload.ip_address = ip;
+
+      console.log("📦 Payload que se envía:", payload);
+
+      const win = window.open("about:blank", "_blank");
+      try {
+        const res = await fetch(API + "/payment-intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        const url = pickRedirectUrl(data);
+        if (url) win.location = url; else win.close();
+      } catch (e) {
+        console.error("Error:", e);
+        if (win) win.close();
+        alert("Error al crear intención: " + e.message);
+      }
+    }
+
+    document.getElementById("btn").addEventListener("click", createPaymentIntent);
+  </script>
+</body>
+</html>
