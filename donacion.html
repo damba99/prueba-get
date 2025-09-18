@@ -2,110 +2,106 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Pagar donación</title>
+  <title>Pagar donación — Fundación Volviendo a Casa</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 20px; max-width: 720px; margin: auto; color: #111; }
+    h1 { margin-bottom: 6px; }
+    form { display: grid; gap: 10px; }
+    label { display: flex; flex-direction: column; font-size: 14px; }
+    input, select, button { padding: 8px 10px; font-size: 16px; border-radius: 6px; border: 1px solid #ccc; }
+    .row { display:flex; gap:10px; }
+    .row > * { flex: 1; }
+    .muted { font-size: 13px; color: #666; }
+    .error { color: #b00020; font-size: 13px; }
+    button { background: #0069d9; color: white; border: 0; cursor: pointer; border-radius: 6px; padding: 10px 14px; }
+    button[disabled] { opacity: 0.6; cursor: not-allowed; }
+    .small { font-size: 13px; color: #555; }
+  </style>
 </head>
 <body>
-  <h1>Doná</h1>
+  <h1>Doná — Fundación Volviendo a Casa</h1>
+  <p class="muted">Completá datos reales. Si vivís en una casa sin número, marcá “Sin número” — pero cuanto más completos y verosímiles sean los datos, mejor funciona el antifraude.</p>
 
-  <label for="amount">Monto (ARS, solo enteros):</label>
-  <input 
-    id="amount" 
-    type="number" 
-    inputmode="numeric" 
-    pattern="[0-9]*" 
-    min="1" 
-    step="1" 
-    placeholder="1500" 
-    autocomplete="off" 
-  />
-  <button type="button" id="btn">Pagar</button>
+  <form id="donationForm" onsubmit="return false;">
+    <label>
+      Nombre
+      <input id="first_name" type="text" placeholder="Juana" required />
+    </label>
+    <label>
+      Apellido
+      <input id="last_name" type="text" placeholder="Pérez" required />
+    </label>
 
-  <script>
-    const API = "https://getnet-volviendo-a-casa.onrender.com";
-    const $amount = document.getElementById("amount");
-    const $btn = document.getElementById("btn");
+    <label>
+      Monto (ARS, enteros)
+      <input id="amount" type="number" min="1" step="1" placeholder="1500" inputmode="numeric" required />
+    </label>
 
-    // Normaliza posibles campos de URL devueltos
-    function pickRedirectUrl(d) {
-      const c = [
-        d?.redirect_url, d?.payment_url, d?.processUrl, d?.url,
-        d?.data?.links?.checkout, d?.data?.redirect_url, d?.data?.url
-      ];
-      return c.find(u => typeof u === "string" && u.startsWith("http")) || null;
-    }
+    <div class="row">
+      <label>
+        Tipo documento
+        <select id="document_type">
+          <option value="dni">DNI</option>
+          <option value="cuit">CUIT</option>
+        </select>
+      </label>
+      <label>
+        N° Documento
+        <input id="document_number" type="text" inputmode="numeric" pattern="\d*" placeholder="30123456" required />
+      </label>
+    </div>
 
-    async function getClientIp() {
-      try {
-        const r = await fetch("https://api.ipify.org?format=json");
-        const j = await r.json();
-        return j.ip || null;
-      } catch {
-        return null;
-      }
-    }
+    <label>
+      Calle
+      <input id="street" type="text" placeholder="Av. Siempre Viva" required />
+    </label>
+    <div class="row">
+      <label>
+        Número
+        <input id="number" type="text" placeholder="742" />
+      </label>
+      <label style="align-items:flex-end;">
+        <label style="font-size:13px; margin:0;">
+          <input id="no_number" type="checkbox" /> Sin número / S/N
+        </label>
+      </label>
+    </div>
 
-    async function createPaymentIntent() {
-      const raw = $amount.value.trim();
-      const pesos = parseInt(raw, 10);
+    <div class="row">
+      <label>
+        Ciudad
+        <input id="city" type="text" placeholder="Salta" required />
+      </label>
+      <label>
+        Provincia / Estado
+        <input id="state" type="text" placeholder="Salta" required />
+      </label>
+    </div>
 
-      if (!Number.isInteger(pesos) || pesos <= 0) {
-        alert("Ingresá un monto válido (pesos enteros, sin centavos).");
-        $amount.focus();
-        return;
-      }
+    <div class="row">
+      <label>
+        CP
+        <input id="postal_code" type="text" inputmode="numeric" pattern="\d*" placeholder="4400" required />
+      </label>
+      <label>
+        País
+        <input id="country" type="text" value="AR" required />
+      </label>
+    </div>
 
-      const amount = pesos * 100;
-      if (!Number.isSafeInteger(amount)) {
-        alert("Monto demasiado grande.");
-        return;
-      }
+    <label>
+      Email
+      <input id="email" type="email" placeholder="donante@ejemplo.com" required />
+    </label>
 
-      // Preabre ventana para no ser bloqueado
-      const win = window.open("about:blank", "_blank");
-      const prev = $btn.textContent;
-      $btn.disabled = true; 
-      $btn.textContent = "Creando orden...";
+    <label>
+      Teléfono (recomendado)
+      <input id="phone" type="tel" placeholder="+549113334444" />
+    </label>
 
-      try {
-        const ip = await getClientIp();
+    <div id="error" class="error" role="alert" aria-live="polite" style="display:none;"></div>
 
-        const payload = { amount };
-        if (ip) payload.ip_address = ip; // se manda al backend
-
-        const res = await fetch(API + "/payment-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-
-        let data;
-        try { data = await res.json(); } catch { data = await res.text(); }
-
-        if (!res.ok) {
-          if (win) win.close();
-          alert("No se pudo crear la intención de pago.\n" + (typeof data === "string" ? data : JSON.stringify(data, null, 2)));
-          return;
-        }
-
-        const url = pickRedirectUrl(data);
-        if (url) {
-          if (win) win.location = url; 
-          else window.open(url, "_blank");
-        } else {
-          if (win) win.close();
-          alert("La respuesta no incluyó link de checkout.\n" + JSON.stringify(data, null, 2));
-        }
-      } catch (err) {
-        if (win) win.close();
-        alert("Error de red: " + err);
-      } finally {
-        $btn.disabled = false; 
-        $btn.textContent = prev;
-      }
-    }
-
-    $btn.addEventListener("click", createPaymentIntent);
-  </script>
-</body>
-</html>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button id="btn" type="button">Pagar</button>
+      <div class="muted
