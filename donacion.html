@@ -1,87 +1,71 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fundación Volviendo a Casa | Donación</title>
-    <!-- estilos -->
-    <link rel="stylesheet" href="stylev4.css">
-    <link rel="shortcut icon" href="./assets/logo-pequeño.webp" type="image/x-icon">
-    <!-- fuente -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap"
-        rel="stylesheet">
-    <style>
-        #donate-section {
-            height: 100vh;
-        }
-
-        .donate-content {
-            height: 100%;
-            gap: 80px;
-        }
-        .donate-text{
-            max-width: 500px;
-            display: flex;
-            flex-direction: column;
-            gap: 40px;
-        }
-        #form{
-            display: flex;
-            flex-direction: column;
-            align-items: start;
-            gap: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
-
-        input {
-            padding: 8px;
-            font-size: 16px;
-            width: 200px;
-        }
-    </style>
-
+  <meta charset="UTF-8">
+  <title>Prueba Getnet + Flask + SQLite</title>
 </head>
-
 <body>
-    <header>
-        <div class="logo-container">
-            <img src="./assets/logo-pequeño.webp" alt="" class="logo-img">
-            <p class="subtitle2">Fundación Volviendo a Casa</p>
-        </div>
+  <h1>💳 Demo integración de pagos</h1>
 
-    </header>
-    <main>
-        <section id="donate-section" class="section">
-            <div class="donate-content content flex flex-center">
-                <div class="donate-text">
-                    <h1 class="title">Doná a la Fundación</h1>
-                    <p class="body">
-                        Ayudanos a seguir asistiendo integralmente a víctimas de Trata de Personas, Violencia de Género,
-                    Abuso Sexual, Abuso Sexual Infantil y personas en situación de vulnerabilidad socio-económica.
-                    </p>
-                    <p class="body">
-                        Con tu aporte podemos continuar con nuestra lucha. <span class="bold">"Ningun, niño, niña o adolescente se va de su
-                    casa porque quiere siempre hay algo o alguien que los incita a hacerlo"</span>
-                    </p>
-                </div>
-                <form id="form" action="">
-                    <h2 class="subtitle">Ingresá el monto que querés donar</h2>
-                    <input id="monto" type="number" min="1" step="1" inputmode="numeric" pattern="\d*">
-                    <input type="hidden" name="monto_valor" id="monto_valor">
-                    <br><br>
-                    <button type="submit" class="btn">Siguiente</button>
-                </form>
-            </div>
-        </section>
-    </main>
-    <script src="./main.js"></script>
+  <p>
+    <label for="amount">Monto (centavos ARS):</label>
+    <input type="number" id="amount" value="100" />
+  </p>
+
+  <!-- Todos los botones tienen type="button" -->
+  <button type="button" onclick="getToken()">🔑 /token</button>
+  <button type="button" onclick="createPaymentIntent()">💸 /payment-intent</button>
+  <button type="button" onclick="listPayments()">📜 /payments</button>
+
+  <pre id="output"></pre>
+  <div id="checkout-button"></div>
+
+  <script>
+    const API = "https://getnet-volviendo-a-casa.onrender.com";
+
+    async function getToken() {
+      const res = await fetch(`${API}/token`);
+      const data = await res.json();
+      show("Respuesta /token", data);
+    }
+
+    async function createPaymentIntent() {
+      const amount = parseInt(document.getElementById("amount").value);
+      const res = await fetch(`${API}/payment-intent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount })
+      });
+      const data = await res.json();
+      show("Respuesta /payment-intent", data);
+
+      const btnContainer = document.getElementById("checkout-button");
+      btnContainer.innerHTML = ""; // limpiar
+
+      // Crear botón dinámico
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = data.redirect_url
+        ? "👉 Ir al checkout Getnet"
+        : "⚠️ No llegó redirect_url";
+      if (data.redirect_url) {
+        button.onclick = () => window.open(data.redirect_url, "_blank");
+      } else {
+        button.disabled = true;
+      }
+      btnContainer.appendChild(button);
+    }
+
+    async function listPayments() {
+      const res = await fetch(`${API}/payments`);
+      const data = await res.json();
+      show("Pagos en DB", data);
+    }
+
+    function show(title, data) {
+      document.getElementById("output").textContent =
+        `${title}:\n` + JSON.stringify(data, null, 2);
+    }
+  </script>
 </body>
-
 </html>
