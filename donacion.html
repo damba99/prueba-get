@@ -4,6 +4,50 @@
   <meta charset="UTF-8" />
   <title>Pagar donación — Fundación Volviendo a Casa</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; padding: 1rem;
+      background: #f9f9f9;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    form {
+      max-width: 500px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.9rem;
+    }
+    input, select, button {
+      padding: 0.5rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      background: #0074d9;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  </style>
 </head>
 <body>
   <h1>Doná — Fundación Volviendo a Casa</h1>
@@ -24,16 +68,13 @@
     <label>Calle <input id="street" required /></label>
     <label>Número <input id="number" /></label>
     <label><input type="checkbox" id="no_number" /> Sin número</label>
-    <label>Complemento (ej: Piso 3, Depto B) <input id="complement" /></label>
-    <label>Barrio / Distrito <input id="district" /></label>
-    <label>Referencia (ej: Frente a la plaza) <input id="reference" /></label>
 
     <label>Ciudad <input id="city" required /></label>
     <label>Provincia <input id="state" required /></label>
     <label>CP <input id="postal_code" required /></label>
 
     <label>Email <input id="email" type="email" required /></label>
-    <label>Teléfono <input id="phone_number" type="tel" required /></label>
+    <label>Teléfono <input id="phone" type="tel" required /></label>
     <label>Género
       <select id="gender" required>
         <option value="Male">Masculino</option>
@@ -66,12 +107,18 @@
     }
 
     async function createPaymentIntent() {
+      const form = document.getElementById("donationForm");
+      if (!form.reportValidity()) return;
+
       const pesos = parseInt(document.getElementById("amount").value, 10);
-      if (!Number.isInteger(pesos) || pesos <= 0) {
-        alert("Monto inválido.");
-        return;
-      }
       const amount = pesos * 100;
+
+      let number = document.getElementById("number").value.trim();
+      let complement = "";
+      if (document.getElementById("no_number").checked) {
+        number = "1"; // default seguro
+        complement = "Sin número";
+      }
 
       const payload = {
         amount,
@@ -80,18 +127,16 @@
         document_type: document.getElementById("document_type").value,
         document_number: document.getElementById("document_number").value.trim(),
         billing_street: document.getElementById("street").value.trim(),
-        billing_number: document.getElementById("no_number").checked ? "S/N" : (document.getElementById("number").value.trim() || "S/N"),
-        billing_complement: document.getElementById("complement").value.trim(),
-        billing_district: document.getElementById("district").value.trim(),
-        billing_reference: document.getElementById("reference").value.trim(),
+        billing_number: number || "1",
+        billing_complement: complement,
         billing_city: document.getElementById("city").value.trim(),
         billing_state: document.getElementById("state").value.trim(),
         billing_postal_code: document.getElementById("postal_code").value.trim(),
         billing_country: "AR",
         email: document.getElementById("email").value.trim(),
-        phone_number: document.getElementById("phone_number").value.trim(),
+        phone_number: document.getElementById("phone").value.trim(),
         gender: document.getElementById("gender").value,
-        checked_email: false, // Getnet lo pide explícito
+        checked_email: false,
         frontend_locale: "es-AR",
         frontend_user_agent: navigator.userAgent,
         frontend_accept_language: navigator.language || "es-AR",
