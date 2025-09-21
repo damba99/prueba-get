@@ -20,36 +20,37 @@
   <h1>Doná — Fundación Volviendo a Casa</h1>
 
   <form id="donationForm" onsubmit="return false;">
-    <!-- OBLIGATORIOS (solo estos cuatro) -->
-    <label>Nombre* <input id="first_name" required autocomplete="given-name" /></label>
-    <label>Apellido* <input id="last_name" required autocomplete="family-name" /></label>
+    <!-- OBLIGATORIOS -->
+    <label>Nombre* <input id="first_name" required /></label>
+    <label>Apellido* <input id="last_name" required /></label>
     <label>DNI* <input id="document_number" required inputmode="numeric" pattern="[0-9]{7,11}" placeholder="Solo números" /></label>
-    <label>Email* <input id="email" type="email" required autocomplete="email" /></label>
+    <label>Email* <input id="email" type="email" required /></label>
+    <label>Monto (ARS)* <input id="amount" type="number" min="1" step="1" required placeholder="Ej: 1500" /></label>
+    <small>El monto se convierte automáticamente a centavos para Getnet.</small>
 
-    <!-- Monto en pesos (enteros) -->
-    <label>Monto (ARS) <input id="amount" type="number" min="1" step="1" placeholder="Ej: 1500" /></label>
-    <small>Se convierte automáticamente a centavos para Getnet.</small>
-
-    <!-- OPCIONALES (si vienen vacíos, se completan con defaults) -->
-    <label>Tipo doc (opcional) 
+    <!-- OPCIONALES (se completan solos si quedan vacíos) -->
+    <label>Tipo doc (opcional)
       <select id="document_type">
-        <option value="dni" selected>DNI</option>
+        <option value="">—</option>
+        <option value="dni">DNI</option>
         <option value="cuit">CUIT</option>
         <option value="cuil">CUIL</option>
       </select>
     </label>
-    <label>Calle (opcional) <input id="street" placeholder="(auto) Av. Siempre Viva" /></label>
-    <label>Número (opcional) <input id="number" placeholder="(auto) 1" /></label>
     <label>Ciudad (opcional) <input id="city" placeholder="(auto) CABA" /></label>
     <label>Provincia (opcional) <input id="state" placeholder="(auto) CABA" /></label>
     <label>Código Postal (opcional) <input id="postal_code" placeholder="(auto) 1001" /></label>
-    <label>Teléfono (opcional) <input id="phone" type="tel" placeholder="(auto) 0000000000" /></label>
+    <label>Teléfono (opcional) <input id="phone" type="tel" placeholder="(auto) 1122334455" /></label>
     <label>Género (opcional)
       <select id="gender">
         <option value="">—</option>
         <option value="Female">Femenino</option>
         <option value="Male">Masculino</option>
-        <option value="Other" selected>Otro</option>
+        <option value="Intersex">Intersex</option>
+        <option value="Trans">Trans</option>
+        <option value="Non-Conforming">No conforme</option>
+        <option value="Personal">Personal</option>
+        <option value="Eunuch">Eunuco</option>
       </select>
     </label>
 
@@ -57,11 +58,10 @@
   </form>
 
   <script>
-    // BACKEND
-    const API = "https://getnet-volviendo-a-casa.onrender.com"; // tu Render
+    const API = "https://getnet-volviendo-a-casa-p8nf.onrender.com";
     const startTime = Date.now();
 
-    // Solo dígitos en DNI y monto
+    // Solo números en DNI y monto
     document.getElementById("document_number").addEventListener("input", e => {
       e.target.value = e.target.value.replace(/\D/g, "");
     });
@@ -78,11 +78,9 @@
     }
 
     function pickRedirectUrl(d) {
-      const c = [
-        d?.redirect_url, d?.payment_url, d?.processUrl, d?.url,
-        d?.data?.links?.checkout, d?.data?.redirect_url, d?.data?.url
-      ];
-      return c.find(u => typeof u === "string" && u.startsWith("http")) || null;
+      return d?.redirect_url || d?.payment_url || d?.processUrl || d?.url
+          || d?.links?.checkout || d?.data?.redirect_url || d?.data?.links?.checkout
+          || null;
     }
 
     function safe(val, fallback) {
@@ -92,18 +90,15 @@
 
     async function createPaymentIntent() {
       const form = document.getElementById("donationForm");
-      // Validamos SOLO los 4 campos obligatorios del enunciado
       if (!form.reportValidity()) return;
 
-      // Monto: si no lo completan, no hay donación. Mejor exigimos >=1 peso.
-      const pesosStr = document.getElementById("amount").value.trim();
-      const pesos = pesosStr ? parseInt(pesosStr, 10) : 0;
+      // Monto → centavos
+      const pesos = parseInt(document.getElementById("amount").value.trim(), 10);
       if (!Number.isInteger(pesos) || pesos <= 0) {
-        alert("Ingresá un monto válido en pesos (entero).");
-        document.getElementById("amount").focus();
+        alert("Ingresá un monto válido en pesos.");
         return;
       }
-      const amount = pesos * 100; // a centavos
+      const amount = pesos * 100;
 
       // Obligatorios
       const first_name = document.getElementById("first_name").value.trim();
@@ -111,17 +106,14 @@
       const email      = document.getElementById("email").value.trim().toLowerCase();
       const document_number = document.getElementById("document_number").value.trim();
 
-      // Opcionales con defaults “sanos”
+      // Opcionales → defaults
       const document_type = safe(document.getElementById("document_type").value, "dni");
-      const street        = safe(document.getElementById("street").value, "Av. Siempre Viva");
-      const number        = safe(document.getElementById("number").value, "1");
       const city          = safe(document.getElementById("city").value, "CABA");
       const state         = safe(document.getElementById("state").value, "CABA");
       const postal_code   = safe(document.getElementById("postal_code").value, "1001");
-      const phone         = safe(document.getElementById("phone").value, "0000000000");
-      const gender        = safe(document.getElementById("gender").value, "Other");
+      const phone         = safe(document.getElementById("phone").value, "1122334455");
+      const gender        = safe(document.getElementById("gender").value, "Personal");
 
-      // Señales de frontend (no sensibles) que ayudan a scoring
       const frontend = {
         sales_channel: "WEB",
         locale: "es-AR",
@@ -130,17 +122,13 @@
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         time_page: Math.round((Date.now() - startTime) / 1000),
       };
-
-      const ip = await getClientIp(); // si falla, lo omitimos
+      const ip = await getClientIp();
       if (ip) frontend.ip = ip;
 
-      // Armado del body para tu backend (tu back completa el payload Getnet)
       const payload = {
-        amount, // centavos
+        amount,
         first_name, last_name, email,
         document_type, document_number,
-        billing_street: street,
-        billing_number: number,
         billing_city: city,
         billing_state: state,
         billing_postal_code: postal_code,
@@ -155,7 +143,6 @@
         ip_address: frontend.ip
       };
 
-      // Abrimos la pestaña antes del fetch para evitar bloqueo de popups
       const win = window.open("about:blank", "_blank");
       const btn = document.getElementById("btn");
       const prev = btn.textContent;
@@ -167,14 +154,14 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        let data; try { data = await res.json(); } catch { data = await res.text(); }
-
+        const data = await res.json();
+        console.log("Respuesta backend:", data);
         const url = pickRedirectUrl(data);
         if (res.ok && url) {
           win.location = url;
         } else {
-          if (win) win.close();
-          alert("No se pudo crear la intención de pago.\n" + (typeof data === "string" ? data : JSON.stringify(data, null, 2)));
+          win.close();
+          alert("No se pudo crear la intención de pago.\n" + JSON.stringify(data, null, 2));
         }
       } catch (e) {
         if (win) win.close();
