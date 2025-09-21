@@ -5,81 +5,51 @@
   <title>Pagar donación — Fundación Volviendo a Casa</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0; padding: 1rem;
-      background: #f9f9f9;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 1rem;
-    }
-    form {
-      max-width: 500px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      background: #fff;
-      padding: 1rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-    label {
-      display: flex;
-      flex-direction: column;
-      font-size: 0.9rem;
-    }
-    input, select, button {
-      padding: 0.5rem;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    button {
-      background: #0074d9;
-      color: #fff;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 1rem; background: #f9f9f9; }
+    h1 { text-align: center; margin-bottom: 1rem; }
+    form { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: .75rem;
+           background: #fff; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+    label { display: flex; flex-direction: column; font-size: .95rem; }
+    input, select, button { padding: .5rem; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; }
+    button { background: #0074d9; color: #fff; border: none; cursor: pointer; font-weight: 600; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    small { color:#666; }
   </style>
 </head>
 <body>
   <h1>Doná — Fundación Volviendo a Casa</h1>
 
   <form id="donationForm" onsubmit="return false;">
-    <label>Nombre <input id="first_name" required /></label>
-    <label>Apellido <input id="last_name" required /></label>
-    <label>Monto (ARS) <input id="amount" type="number" min="1" required /></label>
+    <!-- OBLIGATORIOS (solo estos cuatro) -->
+    <label>Nombre* <input id="first_name" required autocomplete="given-name" /></label>
+    <label>Apellido* <input id="last_name" required autocomplete="family-name" /></label>
+    <label>DNI* <input id="document_number" required inputmode="numeric" pattern="[0-9]{7,11}" placeholder="Solo números" /></label>
+    <label>Email* <input id="email" type="email" required autocomplete="email" /></label>
 
-    <label>Tipo doc
-      <select id="document_type" required>
-        <option value="dni">DNI</option>
+    <!-- Monto en pesos (enteros) -->
+    <label>Monto (ARS) <input id="amount" type="number" min="1" step="1" placeholder="Ej: 1500" /></label>
+    <small>Se convierte automáticamente a centavos para Getnet.</small>
+
+    <!-- OPCIONALES (si vienen vacíos, se completan con defaults) -->
+    <label>Tipo doc (opcional) 
+      <select id="document_type">
+        <option value="dni" selected>DNI</option>
         <option value="cuit">CUIT</option>
+        <option value="cuil">CUIL</option>
       </select>
     </label>
-    <label>N° doc <input id="document_number" required /></label>
-
-    <label>Calle <input id="street" required /></label>
-    <label>Número <input id="number" /></label>
-    <label><input type="checkbox" id="no_number" /> Sin número</label>
-
-    <label>Ciudad <input id="city" required /></label>
-    <label>Provincia <input id="state" required /></label>
-    <label>CP <input id="postal_code" required /></label>
-
-    <label>Email <input id="email" type="email" required /></label>
-    <label>Teléfono <input id="phone" type="tel" required /></label>
-    <label>Género
-      <select id="gender" required>
-        <option value="Male">Masculino</option>
+    <label>Calle (opcional) <input id="street" placeholder="(auto) Av. Siempre Viva" /></label>
+    <label>Número (opcional) <input id="number" placeholder="(auto) 1" /></label>
+    <label>Ciudad (opcional) <input id="city" placeholder="(auto) CABA" /></label>
+    <label>Provincia (opcional) <input id="state" placeholder="(auto) CABA" /></label>
+    <label>Código Postal (opcional) <input id="postal_code" placeholder="(auto) 1001" /></label>
+    <label>Teléfono (opcional) <input id="phone" type="tel" placeholder="(auto) 0000000000" /></label>
+    <label>Género (opcional)
+      <select id="gender">
+        <option value="">—</option>
         <option value="Female">Femenino</option>
-        <option value="Other">Otro</option>
+        <option value="Male">Masculino</option>
+        <option value="Other" selected>Otro</option>
       </select>
     </label>
 
@@ -87,8 +57,17 @@
   </form>
 
   <script>
-    const API = "https://getnet-volviendo-a-casa-p8nf.onrender.com/";
+    // BACKEND
+    const API = "https://getnet-volviendo-a-casa.onrender.com"; // tu Render
     const startTime = Date.now();
+
+    // Solo dígitos en DNI y monto
+    document.getElementById("document_number").addEventListener("input", e => {
+      e.target.value = e.target.value.replace(/\D/g, "");
+    });
+    document.getElementById("amount").addEventListener("input", e => {
+      e.target.value = e.target.value.replace(/\D/g, "");
+    });
 
     async function getClientIp() {
       try {
@@ -106,63 +85,102 @@
       return c.find(u => typeof u === "string" && u.startsWith("http")) || null;
     }
 
+    function safe(val, fallback) {
+      const v = (val ?? "").toString().trim();
+      return v ? v : fallback;
+    }
+
     async function createPaymentIntent() {
       const form = document.getElementById("donationForm");
+      // Validamos SOLO los 4 campos obligatorios del enunciado
       if (!form.reportValidity()) return;
 
-      const pesos = parseInt(document.getElementById("amount").value, 10);
-      const amount = pesos * 100;
-
-      let number = document.getElementById("number").value.trim();
-      let complement = "";
-      if (document.getElementById("no_number").checked) {
-        number = "1"; // default seguro
-        complement = "Sin número";
+      // Monto: si no lo completan, no hay donación. Mejor exigimos >=1 peso.
+      const pesosStr = document.getElementById("amount").value.trim();
+      const pesos = pesosStr ? parseInt(pesosStr, 10) : 0;
+      if (!Number.isInteger(pesos) || pesos <= 0) {
+        alert("Ingresá un monto válido en pesos (entero).");
+        document.getElementById("amount").focus();
+        return;
       }
+      const amount = pesos * 100; // a centavos
 
-      const payload = {
-        amount,
-        first_name: document.getElementById("first_name").value.trim(),
-        last_name: document.getElementById("last_name").value.trim(),
-        document_type: document.getElementById("document_type").value,
-        document_number: document.getElementById("document_number").value.trim(),
-        billing_street: document.getElementById("street").value.trim(),
-        billing_number: number || "1",
-        billing_complement: complement,
-        billing_city: document.getElementById("city").value.trim(),
-        billing_state: document.getElementById("state").value.trim(),
-        billing_postal_code: document.getElementById("postal_code").value.trim(),
-        billing_country: "AR",
-        email: document.getElementById("email").value.trim(),
-        phone_number: document.getElementById("phone").value.trim(),
-        gender: document.getElementById("gender").value,
-        checked_email: false,
-        frontend_locale: "es-AR",
-        frontend_user_agent: navigator.userAgent,
-        frontend_accept_language: navigator.language || "es-AR",
-        frontend_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        frontend_time_page: Math.round((Date.now() - startTime) / 1000)
+      // Obligatorios
+      const first_name = document.getElementById("first_name").value.trim();
+      const last_name  = document.getElementById("last_name").value.trim();
+      const email      = document.getElementById("email").value.trim().toLowerCase();
+      const document_number = document.getElementById("document_number").value.trim();
+
+      // Opcionales con defaults “sanos”
+      const document_type = safe(document.getElementById("document_type").value, "dni");
+      const street        = safe(document.getElementById("street").value, "Av. Siempre Viva");
+      const number        = safe(document.getElementById("number").value, "1");
+      const city          = safe(document.getElementById("city").value, "CABA");
+      const state         = safe(document.getElementById("state").value, "CABA");
+      const postal_code   = safe(document.getElementById("postal_code").value, "1001");
+      const phone         = safe(document.getElementById("phone").value, "0000000000");
+      const gender        = safe(document.getElementById("gender").value, "Other");
+
+      // Señales de frontend (no sensibles) que ayudan a scoring
+      const frontend = {
+        sales_channel: "WEB",
+        locale: "es-AR",
+        user_agent: navigator.userAgent,
+        accept_language: navigator.language || "es-AR",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        time_page: Math.round((Date.now() - startTime) / 1000),
       };
 
-      const ip = await getClientIp();
-      if (ip) payload.ip_address = ip;
+      const ip = await getClientIp(); // si falla, lo omitimos
+      if (ip) frontend.ip = ip;
 
-      console.log("📦 Payload enviado:", payload);
+      // Armado del body para tu backend (tu back completa el payload Getnet)
+      const payload = {
+        amount, // centavos
+        first_name, last_name, email,
+        document_type, document_number,
+        billing_street: street,
+        billing_number: number,
+        billing_city: city,
+        billing_state: state,
+        billing_postal_code: postal_code,
+        billing_country: "AR",
+        phone_number: phone,
+        gender,
+        frontend_locale: frontend.locale,
+        frontend_user_agent: frontend.user_agent,
+        frontend_accept_language: frontend.accept_language,
+        frontend_timezone: frontend.timezone,
+        frontend_time_page: frontend.time_page,
+        ip_address: frontend.ip
+      };
 
+      // Abrimos la pestaña antes del fetch para evitar bloqueo de popups
       const win = window.open("about:blank", "_blank");
+      const btn = document.getElementById("btn");
+      const prev = btn.textContent;
+      btn.disabled = true; btn.textContent = "Creando orden...";
+
       try {
         const res = await fetch(API + "/payment-intent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        const data = await res.json();
+        let data; try { data = await res.json(); } catch { data = await res.text(); }
+
         const url = pickRedirectUrl(data);
-        if (url) win.location = url; else win.close();
+        if (res.ok && url) {
+          win.location = url;
+        } else {
+          if (win) win.close();
+          alert("No se pudo crear la intención de pago.\n" + (typeof data === "string" ? data : JSON.stringify(data, null, 2)));
+        }
       } catch (e) {
-        console.error("Error:", e);
         if (win) win.close();
         alert("Error al crear intención: " + e.message);
+      } finally {
+        btn.disabled = false; btn.textContent = prev;
       }
     }
 
