@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Doná — Fundación Volviendo a Casa</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 1rem; background: #f9f9f9; }
+    h1 { text-align: center; margin-bottom: 1rem; }
+    form {
+      max-width: 860px; margin: 0 auto; display: grid; gap: .75rem;
+      grid-template-columns: repeat(12, 1fr);
+      background: #fff; padding: 1rem; border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,.08);
+    }
+    fieldset { grid-column: 1 / -1; border: 1px solid #ddd; border-radius: 6px; padding: .75rem; }
+    legend { padding: 0 .35rem; font-weight: 600; font-size: .95rem; color: #333; }
+    .col-6 { grid-column: span 6; }
+    .col-4 { grid-column: span 4; }
+    .col-3 { grid-column: span 3; }
+    .col-12 { grid-column: 1 / -1; }
+    label { display: flex; flex-direction: column; font-size: .95rem; gap: .25rem; }
+    input, select, button, textarea {
+      padding: .5rem; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; width: 100%;
+    }
+    button { background: #0074d9; color: #fff; border: none; cursor: pointer; font-weight: 600; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .row { display: grid; gap: .75rem; grid-template-columns: repeat(12, 1fr); }
+    .inline { display: flex; gap: 1rem; align-items: center; }
+    small { color:#666; }
+    pre { white-space: pre-wrap; word-break: break-word; background:#f4f4f4; padding:.75rem; border-radius:6px; }
+    @media (max-width: 720px) {
+      form, .row { grid-template-columns: 1fr; }
+      .col-6, .col-4, .col-3 { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Doná — Fundación Volviendo a Casa</h1>
+
+  <form id="donationForm" onsubmit="return false">
+    <fieldset>
+      <legend>Monto y moneda</legend>
+      <div class="row">
+        <label class="col-6">Monto (en pesos, sin centavos)
+          <input id="amount_pesos" type="number" min="1" step="1" placeholder="Ej: 1500" />
+          <small>Se envía en centavos al backend.</small>
+        </label>
+
+        <div class="col-6">
+          <div class="inline" style="margin-top:1.6rem">
+            <label class="inline"><input type="radio" name="currency" value="ARS" checked /> ARS</label>
+            <label class="inline"><input type="radio" name="currency" value="USD" /> USD</label>
+          </div>
+          <small>Elegí la moneda. Si el donante está fuera de AR, USD suele tener menos rechazos.</small>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Datos personales</legend>
+      <div class="row">
+        <label class="col-6">Nombre
+          <input id="first_name" placeholder="Ej: María" />
+        </label>
+        <label class="col-6">Apellido
+          <input id="last_name" placeholder="Ej: González" />
+        </label>
+        <label class="col-6">Email
+          <input id="email" type="email" placeholder="Ej: persona@correo.com" />
+        </label>
+        <label class="col-6">Teléfono
+          <input id="phone" type="tel" placeholder="Ej: 5491100000000" />
+        </label>
+        <label class="col-6">Género
+          <select id="gender">
+            <option value="">—</option>
+            <option value="Female">Femenino</option>
+            <option value="Male">Masculino</option>
+            <option value="Other">Otro</option>
+          </select>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Documento</legend>
+      <div class="row">
+        <label class="col-4">Tipo
+          <select id="document_type">
+            <option value="">—</option>
+            <option value="dni">DNI</option>
+            <option value="cuit">CUIT</option>
+            <option value="cuil">CUIL</option>
+            <option value="passport">Pasaporte</option>
+          </select>
+        </label>
+        <label class="col-8">Número
+          <input id="document_number" inputmode="numeric" placeholder="Solo números" />
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Dirección de facturación</legend>
+      <div class="row">
+        <label class="col-6">Calle
+          <input id="billing_street" placeholder="Ej: Av. Santa Fe" />
+        </label>
+        <label class="col-3">Número
+          <input id="billing_number" placeholder="742" />
+        </label>
+        <label class="col-3">Código Postal
+          <input id="billing_postal_code" placeholder="1001" />
+        </label>
+
+        <label class="col-6">Ciudad
+          <input id="billing_city" placeholder="Buenos Aires" />
+        </label>
+        <label class="col-6">Provincia/Estado
+          <input id="billing_state" placeholder="Buenos Aires" />
+        </label>
+
+        <label class="col-6">País (ISO-2, ej: AR, US)
+          <input id="billing_country" placeholder="AR" />
+        </label>
+      </div>
+      <small>Podés modificar el país; por defecto intentamos detectarlo por IP.</small>
+    </fieldset>
+
+    <fieldset>
+      <legend>Datos técnicos (auto-detectados)</legend>
+      <div class="row">
+        <label class="col-6">IP pública
+          <input id="ip_address" readonly />
+        </label>
+        <label class="col-6">País por IP
+          <input id="ip_country" readonly />
+        </label>
+        <label class="col-6">Región por IP
+          <input id="ip_region" readonly />
+        </label>
+        <label class="col-6">Ciudad por IP
+          <input id="ip_city" readonly />
+        </label>
+        <label class="col-6">Timezone por IP
+          <input id="ip_timezone" readonly />
+        </label>
+        <label class="col-6">ASN / ISP
+          <input id="ip_asn_org" readonly />
+        </label>
+
+        <label class="col-6">Browser timezone
+          <input id="frontend_timezone" readonly />
+        </label>
+        <label class="col-6">Idioma navegador
+          <input id="frontend_accept_language" readonly />
+        </label>
+        <label class="col-12">User Agent
+          <input id="frontend_user_agent" readonly />
+        </label>
+        <label class="col-6">Plataforma
+          <input id="frontend_platform" readonly />
+        </label>
+        <label class="col-6">Pantalla (WxH @ DPR)
+          <input id="frontend_screen" readonly />
+        </label>
+        <label class="col-6">Referrer
+          <input id="frontend_referrer" readonly />
+        </label>
+        <label class="col-6">Do Not Track
+          <input id="frontend_dnt" readonly />
+        </label>
+        <label class="col-6">Locale (app)
+          <input id="frontend_locale" readonly />
+        </label>
+        <label class="col-6">Tiempo en página (s)
+          <input id="frontend_time_page" readonly />
+        </label>
+      </div>
+      <small>Estos datos se envían al backend para ayudar al antifraud. Podés revisarlos antes de pagar.</small>
+    </fieldset>
+
+    <div class="col-12">
+      <button id="btn" type="button">Pagar</button>
+    </div>
+
+    <div class="col-12">
+      <h3>Último payload enviado</h3>
+      <pre id="debugPayload">—</pre>
+    </div>
+  </form>
+
+  <script>
+    const API = "https://getnet-volviendo-a-casa.onrender.com";
+    const startTime = Date.now();
+
+    // Helpers UI
+    const $ = id => document.getElementById(id);
+    const set = (id, v) => { const el = $(id); if (el) el.value = v ?? ""; };
+
+    // Limpia no-dígitos para campos numéricos “blandos”
+    $("document_number").addEventListener("input", e => e.target.value = e.target.value.replace(/\D/g, ""));
+    $("billing_number").addEventListener("input", e => e.target.value = e.target.value.replace(/[^\w\s-]/g, ""));
+    $("amount_pesos").addEventListener("input", e => e.target.value = e.target.value.replace(/\D/g, ""));
+
+    // Detección de datos del navegador
+    function fillBrowserInfo() {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+      set("frontend_timezone", tz);
+      set("frontend_accept_language", navigator.language || "");
+      set("frontend_user_agent", navigator.userAgent || "");
+      set("frontend_platform", navigator.platform || "");
+      const dpr = window.devicePixelRatio || 1;
+      set("frontend_screen", `${window.screen?.width || '-'}x${window.screen?.height || '-'} @${dpr}`);
+      set("frontend_referrer", document.referrer || "");
+      set("frontend_dnt", (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack || "") ? "1" : "0");
+      // Locale app (tu sitio) — si manejás i18n, ajustalo
+      set("frontend_locale", "es-AR");
+      // time_page dinámico
+      setInterval(() => {
+        const secs = Math.max(1, Math.round((Date.now() - startTime) / 1000));
+        set("frontend_time_page", String(secs));
+      }, 1000);
+    }
+
+    // Obtiene IP pública (ipify)
+    async function fetchPublicIp() {
+      try {
+        const r = await fetch("https://api.ipify.org?format=json");
+        const j = await r.json();
+        return j.ip || null;
+      } catch { return null; }
+    }
+
+    // Geo por IP (intenta ipapi.co y cae a ipwho.is)
+    async function fetchIpGeo(ip) {
+      try {
+        const r = await fetch("https://ipapi.co/json/");
+        const j = await r.json();
+        if (j && j.ip) {
+          return {
+            country: j.country || "",
+            region: j.region || "",
+            city: j.city || "",
+            timezone: j.timezone || "",
+            asn: j.asn || "",
+            org: j.org || j.org_name || ""
+          };
+        }
+      } catch {}
+      try {
+        const r2 = await fetch("https://ipwho.is/");
+        const k = await r2.json();
+        if (k && k.success !== false) {
+          return {
+            country: (k.country_code || "").toUpperCase(),
+            region: k.region || "",
+            city: k.city || "",
+            timezone: k.timezone?.id || "",
+            asn: k.connection?.asn ? `AS${k.connection.asn}` : "",
+            org: k.connection?.org || ""
+          };
+        }
+      } catch {}
+      return null;
+    }
+
+    async function hydrateIpAndGeo() {
+      const ip = await fetchPublicIp();
+      if (ip) set("ip_address", ip);
+      const geo = await fetchIpGeo(ip);
+      if (geo) {
+        set("ip_country", geo.country);
+        set("ip_region", geo.region);
+        set("ip_city", geo.city);
+        set("ip_timezone", geo.timezone);
+        set("ip_asn_org", [geo.asn, geo.org].filter(Boolean).join(" / "));
+        // Prefija país de facturación si está vacío
+        if (!$("billing_country").value) set("billing_country", geo.country || "AR");
+      } else {
+        // Fallback
+        set("ip_country", "");
+        set("ip_region", "");
+        set("ip_city", "");
+        set("ip_timezone", "");
+        set("ip_asn_org", "");
+      }
+    }
+
+    fillBrowserInfo();
+    hydrateIpAndGeo();
+
+    function pickRedirectUrl(d) {
+      return d?.redirect_url || d?.payment_url || d?.processUrl || d?.url
+          || d?.links?.checkout || d?.data?.redirect_url || d?.data?.links?.checkout
+          || null;
+    }
+
+    function getCurrency() {
+      const el = document.querySelector('input[name="currency"]:checked');
+      return el ? el.value : "ARS";
+    }
+
+    function buildPayload() {
+      const pesos = parseInt($("amount_pesos").value.trim(), 10);
+      const amount = Number.isInteger(pesos) && pesos > 0 ? pesos * 100 : 0;
+
+      const payload = {
+        amount,
+        currency: getCurrency(),
+        first_name: $("first_name").value.trim(),
+        last_name: $("last_name").value.trim(),
+        email: $("email").value.trim().toLowerCase(),
+        phone_number: $("phone").value.trim(),
+        gender: $("gender").value || "Personal",
+
+        document_type: $("document_type").value.trim().toLowerCase(),
+        document_number: $("document_number").value.trim(),
+
+        billing_street: $("billing_street").value.trim(),
+        billing_number: $("billing_number").value.trim(),
+        billing_city: $("billing_city").value.trim(),
+        billing_state: $("billing_state").value.trim(),
+        billing_postal_code: $("billing_postal_code").value.trim(),
+        billing_country: $("billing_country").value.trim() || $("ip_country").value.trim() || "AR",
+
+        // Frontend/antifraud signals
+        ip_address: $("ip_address").value.trim(),
+        frontend_locale: $("frontend_locale").value.trim(),
+        frontend_user_agent: $("frontend_user_agent").value.trim(),
+        frontend_accept_language: $("frontend_accept_language").value.trim(),
+        frontend_timezone: $("frontend_timezone").value.trim(),
+        time_page: parseInt($("frontend_time_page").value.trim() || "0", 10) || 1,
+
+        // Opcional: también podrías enviar esto si tu backend decide guardarlo/loguearlo
+        meta: {
+          ip_geo: {
+            country: $("ip_country").value.trim(),
+            region: $("ip_region").value.trim(),
+            city: $("ip_city").value.trim(),
+            timezone: $("ip_timezone").value.trim(),
+            asn_org: $("ip_asn_org").value.trim()
+          },
+          device: {
+            platform: $("frontend_platform").value.trim(),
+            screen: $("frontend_screen").value.trim(),
+            referrer: $("frontend_referrer").value.trim(),
+            dnt: $("frontend_dnt").value.trim()
+          }
+        }
+      };
+
+      return payload;
+    }
+
+    async function createPaymentIntent() {
+      const payload = buildPayload();
+
+      if (!payload.amount) {
+        alert("Ingresá un monto válido en pesos.");
+        return;
+      }
+
+      $("debugPayload").textContent = JSON.stringify(payload, null, 2);
+
+      const win = window.open("about:blank", "_blank");
+      const btn = $("btn");
+      const prev = btn.textContent;
+      btn.disabled = true; btn.textContent = "Creando orden...";
+
+      try {
+        const res = await fetch(`${API}/payment-intent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        const url = pickRedirectUrl(data);
+
+        if (res.ok && url) {
+          win.location = url;
+        } else {
+          win.close();
+          alert("No se pudo crear la intención de pago.\n" + JSON.stringify(data, null, 2));
+        }
+      } catch (e) {
+        if (win) win.close();
+        alert("Error al crear intención: " + e.message);
+      } finally {
+        btn.disabled = false; btn.textContent = prev;
+      }
+    }
+
+    $("btn").addEventListener("click", createPaymentIntent);
+  </script>
+</body>
+</html>
