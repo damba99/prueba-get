@@ -79,6 +79,7 @@
             <option value="Female">Femenino</option>
             <option value="Male">Masculino</option>
             <option value="Other">Otro</option>
+            <option value="Personal">Personal</option>
           </select>
         </label>
       </div>
@@ -196,16 +197,13 @@
     const API = "https://getnet-volviendo-a-casa.onrender.com";
     const startTime = Date.now();
 
-    // Helpers UI
     const $ = id => document.getElementById(id);
     const set = (id, v) => { const el = $(id); if (el) el.value = v ?? ""; };
 
-    // Limpia no-dígitos para campos numéricos “blandos”
     $("document_number").addEventListener("input", e => e.target.value = e.target.value.replace(/\D/g, ""));
     $("billing_number").addEventListener("input", e => e.target.value = e.target.value.replace(/[^\w\s-]/g, ""));
     $("amount_pesos").addEventListener("input", e => e.target.value = e.target.value.replace(/\D/g, ""));
 
-    // Detección de datos del navegador
     function fillBrowserInfo() {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
       set("frontend_timezone", tz);
@@ -216,16 +214,13 @@
       set("frontend_screen", `${window.screen?.width || '-'}x${window.screen?.height || '-'} @${dpr}`);
       set("frontend_referrer", document.referrer || "");
       set("frontend_dnt", (navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack || "") ? "1" : "0");
-      // Locale app (tu sitio) — si manejás i18n, ajustalo
       set("frontend_locale", "es-AR");
-      // time_page dinámico
       setInterval(() => {
         const secs = Math.max(1, Math.round((Date.now() - startTime) / 1000));
         set("frontend_time_page", String(secs));
       }, 1000);
     }
 
-    // Obtiene IP pública (ipify)
     async function fetchPublicIp() {
       try {
         const r = await fetch("https://api.ipify.org?format=json");
@@ -234,17 +229,17 @@
       } catch { return null; }
     }
 
-    // Geo por IP (intenta ipapi.co y cae a ipwho.is)
     async function fetchIpGeo(ip) {
       try {
         const r = await fetch("https://ipapi.co/json/");
         const j = await r.json();
         if (j && j.ip) {
           return {
-            country: j.country || "",
+            country: (j.country || "").toUpperCase(),
             region: j.region || "",
             city: j.city || "",
             timezone: j.timezone || "",
+            postal: j.postal || j.postal_code || "",
             asn: j.asn || "",
             org: j.org || j.org_name || ""
           };
@@ -259,6 +254,7 @@
             region: k.region || "",
             city: k.city || "",
             timezone: k.timezone?.id || "",
+            postal: k.postal || k.postal_code || "",
             asn: k.connection?.asn ? `AS${k.connection.asn}` : "",
             org: k.connection?.org || ""
           };
@@ -272,15 +268,17 @@
       if (ip) set("ip_address", ip);
       const geo = await fetchIpGeo(ip);
       if (geo) {
-        set("ip_country", geo.country);
-        set("ip_region", geo.region);
-        set("ip_city", geo.city);
-        set("ip_timezone", geo.timezone);
+        set("ip_country", geo.country || "");
+        set("ip_region", geo.region || "");
+        set("ip_city", geo.city || "");
+        set("ip_timezone", geo.timezone || "");
         set("ip_asn_org", [geo.asn, geo.org].filter(Boolean).join(" / "));
-        // Prefija país de facturación si está vacío
+        // AUTOCOMPLETAR campos de facturación SOLO SI ESTÁN VACÍOS
         if (!$("billing_country").value) set("billing_country", geo.country || "AR");
+        if (!$("billing_city").value) set("billing_city", geo.city || "");
+        if (!$("billing_state").value) set("billing_state", geo.region || "");
+        if (!$("billing_postal_code").value) set("billing_postal_code", geo.postal || "");
       } else {
-        // Fallback
         set("ip_country", "");
         set("ip_region", "");
         set("ip_city", "");
@@ -326,7 +324,6 @@
         billing_postal_code: $("billing_postal_code").value.trim(),
         billing_country: $("billing_country").value.trim() || $("ip_country").value.trim() || "AR",
 
-        // Frontend/antifraud signals
         ip_address: $("ip_address").value.trim(),
         frontend_locale: $("frontend_locale").value.trim(),
         frontend_user_agent: $("frontend_user_agent").value.trim(),
@@ -334,7 +331,6 @@
         frontend_timezone: $("frontend_timezone").value.trim(),
         time_page: parseInt($("frontend_time_page").value.trim() || "0", 10) || 1,
 
-        // Opcional: también podrías enviar esto si tu backend decide guardarlo/loguearlo
         meta: {
           ip_geo: {
             country: $("ip_country").value.trim(),
