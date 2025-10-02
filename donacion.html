@@ -4,6 +4,24 @@
   <meta charset="UTF-8" />
   <title>Doná — Fundación Volviendo a Casa</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* Responsive solo para móvil */
+    @media (max-width: 720px) {
+      form, fieldset .row, .row {
+        display: flex;
+        flex-direction: column;
+      }
+      .row label, .col-6, .col-12, .col-4, .col-3 {
+        width: 100% !important;
+        display: flex;
+        flex-direction: column;
+      }
+      .inline {
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+    }
+  </style>
 </head>
 <body>
   <h1>Doná — Fundación Volviendo a Casa</h1>
@@ -124,34 +142,6 @@
         <label class="col-6">ASN / ISP
           <input id="ip_asn_org" readonly />
         </label>
-
-        <label class="col-6">Browser timezone
-          <input id="frontend_timezone" readonly />
-        </label>
-        <label class="col-6">Idioma navegador
-          <input id="frontend_accept_language" readonly />
-        </label>
-        <label class="col-12">User Agent
-          <input id="frontend_user_agent" readonly />
-        </label>
-        <label class="col-6">Plataforma
-          <input id="frontend_platform" readonly />
-        </label>
-        <label class="col-6">Pantalla (WxH @ DPR)
-          <input id="frontend_screen" readonly />
-        </label>
-        <label class="col-6">Referrer
-          <input id="frontend_referrer" readonly />
-        </label>
-        <label class="col-6">Do Not Track
-          <input id="frontend_dnt" readonly />
-        </label>
-        <label class="col-6">Locale (app)
-          <input id="frontend_locale" readonly />
-        </label>
-        <label class="col-6">Tiempo en página (s)
-          <input id="frontend_time_page" readonly />
-        </label>
       </div>
     </fieldset>
 
@@ -159,11 +149,8 @@
       <button id="btn" type="button">Pagar</button>
     </div>
 
-    <div class="col-12" style="display: none;">
-      <h3>Último payload enviado</h3>
-      <pre id="debugPayload">—</pre>
-    </div>
   </form>
+
 
   <script>
     const API = "https://getnet-volviendo-a-casa-p8nf.onrender.com";
